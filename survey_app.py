@@ -9,7 +9,7 @@ def save_to_google_sheet(data):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_name("experiment2.json", scope)
     client = gspread.authorize(creds)
-    sheet = client.open("Experiment 2").sheet1
+    sheet = client.open("Your Spreadsheet Name").sheet1
 
     if isinstance(data['race'], list):
         data['race'] = ', '.join(data['race'])
@@ -68,10 +68,23 @@ def show_rules():
 
 def show_game_input():
     st.title(f"🎮 Round {st.session_state.round} of 10")
-    bid = st.number_input("How much do you want to invest? (0–100)", min_value=0, max_value=100, key=f"bid_{st.session_state.round}")
-    if st.button("Submit Investment"):
-        st.session_state.current_bid = bid
-        st.session_state.page = "game_result"
+
+    if f"submitted_{st.session_state.round}" not in st.session_state:
+        st.session_state[f"submitted_{st.session_state.round}"] = False
+
+    if not st.session_state[f"submitted_{st.session_state.round}"]:
+        bid = st.number_input("How much do you want to invest? (0–100)", min_value=0, max_value=100, step=1, key=f"bid_{st.session_state.round}")
+        if st.button("Submit Investment"):
+            st.session_state.current_bid = bid
+            st.session_state[f"submitted_{st.session_state.round}"] = True
+            st.session_state.page = "game_result"
+            st.rerun()
+    else:
+        st.info("Investment submitted. Click below to view result.")
+        if st.button("View Result"):
+            st.session_state.page = "game_result"
+            st.rerun()
+
 
 def show_game_result():
     round_num = st.session_state.round
@@ -91,15 +104,17 @@ def show_game_result():
     st.write(f"Payoff this round: **{payoff:.2f} points**")
 
     if round_num < 10:
-        st.session_state.round += 1
         if st.button("Next Round"):
+            st.session_state.round += 1
             st.session_state.page = "game_input"
+            st.rerun()
     else:
         selected = random.randint(0, 9)
         final_payoff = st.session_state.pdata["rounds"][selected]["payoff"]
         st.session_state.pdata["X"] = final_payoff
         st.session_state.pdata["selected_round"] = selected + 1
         st.session_state.page = "final"
+        st.rerun()
 
 def show_final():
     st.title("🎉 Game Complete")
@@ -170,4 +185,5 @@ elif st.session_state.page == "final":
     show_final()
 elif st.session_state.page == "dashboard":
     show_dashboard()
+
 
