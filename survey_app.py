@@ -14,20 +14,26 @@ def save_to_google_sheet(data):
     if isinstance(data['race'], list):
         data['race'] = ', '.join(data['race'])
 
-    sheet.append_row([data['name'], data['gender'], data['age'], data['race'], data['X']])
+    # Flatten round data
+    round_data = []
+    for r in data["rounds"]:
+        round_data.extend([r["bid"], r["outcome"], r["payoff"]])
+
+    row = [data['name'], data['gender'], data['age'], data['race'], data['X'], data.get("selected_round", "")] + round_data
+    sheet.append_row(row)
 
 def load_data_from_google_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("experiment2.json", scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_name("creds.json", scope)
     client = gspread.authorize(creds)
-    sheet = client.open("Experiment 2").sheet1
+    sheet = client.open("Your Spreadsheet Name").sheet1
 
     return sheet.get_all_records()
 
 # --- Pages ---
 def show_welcome():
-    st.title("🎓 Welcome to Experiment 2!")
-
+    st.title("🎓 Welcome to the Student Investment Game")
+    st.write("This is a fun and interactive game designed to collect anonymous data for classroom analysis.")
     st.write("Click below to begin.")
     if st.button("Start"):
         st.session_state.page = "form"
@@ -54,37 +60,55 @@ def show_form():
 def show_rules():
     st.title("📜 Game Rules")
     st.write("""
-    You will play 10 rounds. In each round, click a button to receive a random payoff between 0 and 10.
-    Your final score (X value) will be the **sum of all 10 rounds**.
-    After each round, you'll see feedback on your current total.
+    You will play 10 rounds. In each round, you receive 100 points and choose how much to invest in a risky asset.
+    - If the asset succeeds (50% chance): payoff = 100 + 1.5 × investment
+    - If it fails: payoff = 100 − investment
+    At the end, one round is randomly selected and its payoff becomes your final score (X value).
     """)
     if st.button("Start Game"):
         st.session_state.round = 1
-        st.session_state.total = 0
         st.session_state.page = "game"
 
 def show_game():
     st.title(f"🎮 Round {st.session_state.round} of 10")
 
-    if st.button("Play Round"):
-        payoff = random.randint(0, 10)
-        st.session_state.total += payoff
-        st.session_state.pdata["rounds"].append(payoff)
-        st.success(f"You earned {payoff} points this round!")
-        st.info(f"Total so far: {st.session_state.total}")
+    bid = st.number_input("How much do you want to invest? (0–100)", min_value=0, max_value=100, key=f"bid_{st.session_state.round}")
+
+    if st.button("Submit Investment"):
+        outcome = random.choice(["Success", "Failure"])
+        payoff = 100 + 1.5 * bid if outcome == "Success" else 100 - bid
+
+        st.session_state.pdata["rounds"].append({
+            "round": st.session_state.round,
+            "bid": bid,
+            "outcome": outcome,
+            "payoff": payoff
+        })
+
+        st.success(f"Outcome: {outcome}")
+        st.info(f"Payoff this round: {payoff:.2f}")
 
         if st.session_state.round < 10:
             st.session_state.round += 1
         else:
-            st.session_state.pdata["X"] = st.session_state.total
+            selected = random.randint(0, 9)
+            final_payoff = st.session_state.pdata["rounds"][selected]["payoff"]
+            st.session_state.pdata["X"] = final_payoff
+            st.session_state.pdata["selected_round"] = selected + 1
             st.session_state.page = "final"
 
 def show_final():
     st.title("🎉 Game Complete")
 
-    st.write(f"Your final score (X value) is: **{st.session_state.pdata['X']}**")
+    selected = st.session_state.pdata["selected_round"]
+    final_score = st.session_state.pdata["X"]
+
+    st.write(f"🎲 Randomly selected round: **Round {selected}**")
+    st.write(f"💰 Your final payoff (X value): **{final_score:.2f} points**")
+
     save_to_google_sheet(st.session_state.pdata)
     st.success("Your data has been saved anonymously.")
+
     if st.button("View Class Dashboard"):
         st.session_state.page = "dashboard"
 
@@ -101,7 +125,7 @@ def show_dashboard():
     st.subheader("All Participants")
     st.dataframe(df)
 
-    st.subheader("Average X Value")
+    st.subheader("Average Final Payoff (X)")
     avg_x = df["X"].mean()
     st.metric(label="Average X", value=f"{avg_x:.2f}")
 
@@ -140,3 +164,4 @@ elif st.session_state.page == "final":
     show_final()
 elif st.session_state.page == "dashboard":
     show_dashboard()
+
