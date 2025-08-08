@@ -7,14 +7,13 @@ from oauth2client.service_account import ServiceAccountCredentials
 # --- Google Sheets Setup ---
 def save_to_google_sheet(data):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("creds.json", scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_name("experiment2.json", scope)
     client = gspread.authorize(creds)
-    sheet = client.open("Experiment 1").sheet1
+    sheet = client.open("Experiment 2").sheet1
 
     if isinstance(data['race'], list):
         data['race'] = ', '.join(data['race'])
 
-    # Flatten round data
     round_data = []
     for r in data["rounds"]:
         round_data.extend([r["bid"], r["outcome"], r["payoff"]])
@@ -24,7 +23,7 @@ def save_to_google_sheet(data):
 
 def load_data_from_google_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("creds.json", scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_name("experiment2.json", scope)
     client = gspread.authorize(creds)
     sheet = client.open("Your Spreadsheet Name").sheet1
 
@@ -34,13 +33,11 @@ def load_data_from_google_sheet():
 def show_welcome():
     st.title("🎓 Welcome to the Student Investment Game")
     st.write("This is a fun and interactive game designed to collect anonymous data for classroom analysis.")
-    st.write("Click below to begin.")
     if st.button("Start"):
         st.session_state.page = "form"
 
 def show_form():
     st.title("👤 Personal Information")
-
     name = st.text_input("Name")
     gender = st.selectbox("Gender", ["Male", "Female", "Other"])
     age = st.slider("Age", 10, 100, 20)
@@ -67,39 +64,45 @@ def show_rules():
     """)
     if st.button("Start Game"):
         st.session_state.round = 1
-        st.session_state.page = "game"
+        st.session_state.page = "game_input"
 
-def show_game():
+def show_game_input():
     st.title(f"🎮 Round {st.session_state.round} of 10")
-
     bid = st.number_input("How much do you want to invest? (0–100)", min_value=0, max_value=100, key=f"bid_{st.session_state.round}")
-
     if st.button("Submit Investment"):
-        outcome = random.choice(["Success", "Failure"])
-        payoff = 100 + 1.5 * bid if outcome == "Success" else 100 - bid
+        st.session_state.current_bid = bid
+        st.session_state.page = "game_result"
 
-        st.session_state.pdata["rounds"].append({
-            "round": st.session_state.round,
-            "bid": bid,
-            "outcome": outcome,
-            "payoff": payoff
-        })
+def show_game_result():
+    round_num = st.session_state.round
+    bid = st.session_state.current_bid
+    outcome = random.choice(["Success", "Failure"])
+    payoff = 100 + 1.5 * bid if outcome == "Success" else 100 - bid
 
-        st.success(f"Outcome: {outcome}")
-        st.info(f"Payoff this round: {payoff:.2f}")
+    st.session_state.pdata["rounds"].append({
+        "round": round_num,
+        "bid": bid,
+        "outcome": outcome,
+        "payoff": payoff
+    })
 
-        if st.session_state.round < 10:
-            st.session_state.round += 1
-        else:
-            selected = random.randint(0, 9)
-            final_payoff = st.session_state.pdata["rounds"][selected]["payoff"]
-            st.session_state.pdata["X"] = final_payoff
-            st.session_state.pdata["selected_round"] = selected + 1
-            st.session_state.page = "final"
+    st.title(f"📄 Round {round_num} Result")
+    st.write(f"Outcome: **{outcome}**")
+    st.write(f"Payoff this round: **{payoff:.2f} points**")
+
+    if round_num < 10:
+        st.session_state.round += 1
+        if st.button("Next Round"):
+            st.session_state.page = "game_input"
+    else:
+        selected = random.randint(0, 9)
+        final_payoff = st.session_state.pdata["rounds"][selected]["payoff"]
+        st.session_state.pdata["X"] = final_payoff
+        st.session_state.pdata["selected_round"] = selected + 1
+        st.session_state.page = "final"
 
 def show_final():
     st.title("🎉 Game Complete")
-
     selected = st.session_state.pdata["selected_round"]
     final_score = st.session_state.pdata["X"]
 
@@ -114,7 +117,6 @@ def show_final():
 
 def show_dashboard():
     st.title("📊 Class Dashboard")
-
     data = load_data_from_google_sheet()
     if not data:
         st.info("No data available yet.")
@@ -141,9 +143,11 @@ def show_dashboard():
         if isinstance(entry, str):
             races = [r.strip() for r in entry.split(",")]
             all_races.extend(races)
-
     race_counts = pd.Series(all_races).value_counts()
     st.bar_chart(race_counts)
+
+    st.subheader("Final Payoff Distribution")
+    st.bar_chart(df["X"])
 
     if st.button("Play Again"):
         st.session_state.page = "welcome"
@@ -158,8 +162,10 @@ elif st.session_state.page == "form":
     show_form()
 elif st.session_state.page == "rules":
     show_rules()
-elif st.session_state.page == "game":
-    show_game()
+elif st.session_state.page == "game_input":
+    show_game_input()
+elif st.session_state.page == "game_result":
+    show_game_result()
 elif st.session_state.page == "final":
     show_final()
 elif st.session_state.page == "dashboard":
