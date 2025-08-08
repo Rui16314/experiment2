@@ -9,7 +9,7 @@ def save_to_google_sheet(data):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_name("experiment2.json", scope)
     client = gspread.authorize(creds)
-    sheet = client.open("Your Spreadsheet Name").sheet1
+    sheet = client.open("Experiment 2").sheet1
 
     if isinstance(data['race'], list):
         data['race'] = ', '.join(data['race'])
