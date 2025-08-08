@@ -7,9 +7,9 @@ from oauth2client.service_account import ServiceAccountCredentials
 # --- Google Sheets Setup ---
 def save_to_google_sheet(data):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("experiment2.json", scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_name("creds.json", scope)
     client = gspread.authorize(creds)
-    sheet = client.open("Experiment 2").sheet1
+    sheet = client.open("Experiment 1").sheet1
 
     if isinstance(data['race'], list):
         data['race'] = ', '.join(data['race'])
