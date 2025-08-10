@@ -31,8 +31,8 @@ def load_data_from_google_sheet():
 
 # --- Pages ---
 def show_welcome():
-    st.title("🎓 Welcome to the Student Investment Game")
-    st.write("This is a fun and interactive game designed to collect anonymous data for classroom analysis.")
+    st.title("🎓 Welcome to experiment 2!")
+    st.write("You will play a fun game similar to real-life investment in the stock market! Be careful with your evey investment!")
     if st.button("Start"):
         st.session_state.page = "form"
 
