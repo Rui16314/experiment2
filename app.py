@@ -133,20 +133,50 @@ def show_final():
 def show_dashboard():
     st.title("📊 Your Dashboard")
 
-    # Show only current participant's data
-    st.subheader("🧍 Your Info")
-    df_user = pd.DataFrame([st.session_state.pdata])
-    df_user["rounds"] = df_user["rounds"].apply(lambda rounds: [f"R{r['round']}: {r['outcome']} (${r['payoff']:.2f})" for r in rounds])
-    st.dataframe(df_user)
+    pdata = st.session_state.pdata
+    X = pdata["X"]
 
-    # Show round-by-round history
+    # --- Individual Summary ---
+    st.subheader("🧍 Your Info")
+    st.write(f"**Name:** {pdata['name']}")
+    st.write(f"**Gender:** {pdata['gender']}")
+    st.write(f"**Age:** {pdata['age']}")
+    st.write(f"**Race:** {pdata['race']}")
+    st.write(f"**Final Payoff (X):** {X:.2f} points")
+
+    if X == 100:
+        st.markdown("🧠 **Risk Preference:** Risk-neutral or risk-loving")
+    else:
+        st.markdown("🧠 **Risk Preference:** Risk-averse")
+
+    # --- Round History Table ---
     st.subheader("📄 Your Round History")
-    rounds_df = pd.DataFrame(st.session_state.pdata["rounds"])
+    rounds_df = pd.DataFrame(pdata["rounds"])
     st.dataframe(rounds_df)
 
-    # Optional: Line chart of payoff over rounds
+    # --- Payoff Line Chart ---
     st.subheader("📈 Payoff Over Rounds")
     st.line_chart(rounds_df.set_index("round")["payoff"])
+
+    # --- Group-Level Visualizations ---
+    st.subheader("🌍 Group Summary")
+    all_data = load_local_data()
+    if all_data:
+        df = pd.DataFrame(all_data)
+
+        st.markdown("**Distribution of Final Payoffs (X)**")
+        st.bar_chart(df["X"].value_counts().sort_index())
+
+        st.markdown("**Average Final Payoff by Gender**")
+        st.bar_chart(df.groupby("gender")["X"].mean())
+
+        st.markdown("**Average Final Payoff by Age**")
+        st.bar_chart(df.groupby("age")["X"].mean())
+
+        st.markdown("**Average Final Payoff by Race**")
+        st.bar_chart(df.groupby("race")["X"].mean())
+    else:
+        st.info("No group data available yet.")
 
     if st.button("Play Again"):
         st.session_state.page = "welcome"
