@@ -1,97 +1,151 @@
 import streamlit as st
-import random
 import pandas as pd
+import random
+import os
+import json
+from datetime import datetime
 
-# --- Helper Functions ---
+DATA_FILE = "game_data.json"
+
+# --- Local Data Storage ---
+def save_to_local(data):
+    data["timestamp"] = datetime.utcnow().isoformat()
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r") as f:
+            all_data = json.load(f)
+    else:
+        all_data = []
+
+    if isinstance(data['race'], list):
+        data['race'] = ', '.join(data['race'])
+
+    all_data.append(data)
+
+    with open(DATA_FILE, "w") as f:
+        json.dump(all_data, f)
+
 def load_local_data():
-    if "all_data" not in st.session_state:
-        st.session_state.all_data = []
-    return st.session_state.all_data
-
-def save_local_data(data):
-    st.session_state.all_data.append(data)
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r") as f:
+            return json.load(f)
+    return []
 
 # --- Pages ---
-def welcome():
-    st.title("🎮 Welcome to the Bidding Game")
-    st.write("Enter your details to begin:")
+def show_welcome():
+    st.title("🎓 Welcome to experiment 2!")
+    st.write("You will play a fun game similar to real-life investment in the stock market! Be careful with every investment!")
+    if st.button("Start"):
+        st.session_state.page = "form"
 
+def show_form():
+    st.title("👤 Personal Information")
     name = st.text_input("Name")
     gender = st.selectbox("Gender", ["Male", "Female", "Other"])
-    age = st.number_input("Age", min_value=18, max_value=100)
-    race = st.selectbox("Race", ["Asian", "Black", "White", "Latino", "Other"])
+    age = st.slider("Age", 10, 100, 20)
+    race = st.multiselect("Race", ["Asian", "Black", "White", "Latino", "Indigenous", "Other"])
 
-    if st.button("Start Game"):
+    if st.button("Next: Game Rules"):
         st.session_state.pdata = {
             "name": name,
             "gender": gender,
             "age": age,
             "race": race,
-            "rounds": [],
-            "selected_round": None,
-            "X": None
+            "X": 0,
+            "rounds": []
         }
-        st.session_state.page = "game"
+        st.session_state.page = "rules"
 
-def game():
-    st.title("🕹️ Bidding Game")
+def show_rules():
+    st.title("📜 Game Rules")
+    st.write("""
+    You will play 10 rounds. In each round, you receive 100 points and choose how much to invest in a risky asset.
+    - If the asset succeeds (50% chance): payoff = 100 + 1.5 × investment
+    - If it fails: payoff = 100 − investment
+    At the end, one round is randomly selected and its payoff becomes your final score (X value).
+    """)
+    if st.button("Start Game"):
+        st.session_state.round = 1
+        st.session_state.page = "game_input"
 
-    round_num = len(st.session_state.pdata["rounds"]) + 1
-    st.subheader(f"Round {round_num}")
+def show_game_input():
+    round_number = st.session_state.round
+    if round_number > 10:
+        st.session_state.page = "game_result"
+        st.rerun()
+        return
 
-    bid = st.slider("Choose your bid (0–100)", 0, 100, 50)
-    if st.button("Submit Bid"):
-        payoff = random.uniform(0, 1) * bid
-        st.session_state.pdata["rounds"].append({
-            "round": round_num,
-            "bid": bid,
-            "payoff": payoff
-        })
+    st.title(f"🎮 Round {round_number} of 10")
 
-        if round_num >= 10:
-            st.session_state.page = "result"
-        else:
-            st.experimental_rerun()
+    if f"submitted_{round_number}" not in st.session_state:
+        st.session_state[f"submitted_{round_number}"] = False
 
-def result():
-    st.title("🎯 Final Result")
+    if not st.session_state[f"submitted_{round_number}"]:
+        bid = st.number_input("How much do you want to invest? (0–100)", min_value=0, max_value=100, step=1, key=f"bid_{round_number}")
+        if st.button("Submit Investment"):
+            st.session_state.current_bid = bid
+            st.session_state[f"submitted_{round_number}"] = True
+            st.session_state.page = "game_result"
+            st.rerun()
+    else:
+        st.info("Investment submitted. Click below to view result.")
+        if st.button("View Result"):
+            st.session_state.page = "game_result"
+            st.rerun()
 
-    pdata = st.session_state.pdata
-    selected_round = random.randint(1, 10)
-    pdata["selected_round"] = selected_round
-    selected_bid = pdata["rounds"][selected_round - 1]["bid"]
-    selected_payoff = pdata["rounds"][selected_round - 1]["payoff"]
-    pdata["X"] = selected_payoff
+def show_game_result():
+    round_num = st.session_state.round
+    bid = st.session_state.current_bid
+    outcome = random.choice(["Success", "Failure"])
+    payoff = 100 + 1.5 * bid if outcome == "Success" else 100 - bid
 
-    save_local_data({
-        "name": pdata["name"],
-        "gender": pdata["gender"],
-        "age": pdata["age"],
-        "race": pdata["race"],
-        "X": selected_payoff
+    st.session_state.pdata["rounds"].append({
+        "round": round_num,
+        "bid": bid,
+        "outcome": outcome,
+        "payoff": payoff
     })
 
-    st.write(f"🔢 Selected Round: {selected_round}")
-    st.write(f"💰 Your Bid: {selected_bid}")
-    st.write(f"🏆 Final Payoff (X): {selected_payoff:.2f} points")
+    st.title(f"📄 Round {round_num} Result")
+    st.write(f"Outcome: **{outcome}**")
+    st.write(f"Payoff this round: **{payoff:.2f} points**")
 
-    # --- Risk Preference ---
-    if selected_bid == 100:
-        st.markdown("🧠 **Risk Preference:** Risk-neutral or risk-loving")
+    if round_num < 10:
+        if st.button("Next Round"):
+            st.session_state.round += 1
+            st.session_state.page = "game_input"
+            st.rerun()
     else:
-        st.markdown("🧠 **Risk Preference:** Risk-averse")
+        selected = random.randint(0, 9)
+        selected_bid = st.session_state.pdata["rounds"][selected]["bid"]
+        final_payoff = st.session_state.pdata["rounds"][selected]["payoff"]
+        st.session_state.pdata["X"] = final_payoff
+        st.session_state.pdata["selected_round"] = selected + 1
+        st.session_state.pdata["selected_bid"] = selected_bid
+        st.session_state.page = "final"
+        st.rerun()
 
-    if st.button("View Dashboard"):
+def show_final():
+    st.title("🎉 Game Complete")
+    selected = st.session_state.pdata["selected_round"]
+    final_score = st.session_state.pdata["X"]
+
+    st.write(f"🎲 Randomly selected round: **Round {selected}**")
+    st.write(f"💰 Your final payoff (X value): **{final_score:.2f} points**")
+
+    save_to_local(st.session_state.pdata)
+    st.success("Your data has been saved anonymously.")
+
+    if st.button("View Your Dashboard"):
         st.session_state.page = "dashboard"
 
-def dashboard():
+def show_dashboard():
     st.title("📊 Your Dashboard")
 
     pdata = st.session_state.pdata
     X = pdata["X"]
-    selected_index = pdata["selected_round"] - 1
-    selected_bid = pdata["rounds"][selected_index]["bid"]
+    selected_bid = pdata["selected_bid"]
 
+    # --- Individual Summary ---
     st.subheader("🧍 Your Info")
     st.write(f"**Name:** {pdata['name']}")
     st.write(f"**Gender:** {pdata['gender']}")
@@ -105,13 +159,14 @@ def dashboard():
     else:
         st.markdown("🧠 **Risk Preference:** Risk-averse")
 
+    # --- Group-Level Visualizations ---
     st.subheader("🌍 Group Summary")
     all_data = load_local_data()
     if all_data:
         df = pd.DataFrame(all_data)
 
         st.markdown("**Distribution of Final Payoffs (X)**")
-        st.bar_chart(df["X"].round().value_counts().sort_index())
+        st.bar_chart(df["X"].value_counts().sort_index())
 
         st.markdown("**Average Final Payoff by Gender**")
         st.bar_chart(df.groupby("gender")["X"].mean())
@@ -127,18 +182,25 @@ def dashboard():
     if st.button("Play Again"):
         st.session_state.page = "welcome"
 
-# --- Page Router ---
+# --- Page Routing ---
 if "page" not in st.session_state:
     st.session_state.page = "welcome"
 
-pages = {
-    "welcome": welcome,
-    "game": game,
-    "result": result,
-    "dashboard": dashboard
-}
+if st.session_state.page == "welcome":
+    show_welcome()
+elif st.session_state.page == "form":
+    show_form()
+elif st.session_state.page == "rules":
+    show_rules()
+elif st.session_state.page == "game_input":
+    show_game_input()
+elif st.session_state.page == "game_result":
+    show_game_result()
+elif st.session_state.page == "final":
+    show_final()
+elif st.session_state.page == "dashboard":
+    show_dashboard()
 
-pages[st.session_state.page]()
 
 
 
