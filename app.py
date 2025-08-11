@@ -166,22 +166,32 @@ def show_dashboard():
     if all_data:
         df = pd.DataFrame(all_data)
 
+        # Clean and prepare data
+        df["gender"] = df["gender"].fillna("Unknown")
+        df["age"] = pd.to_numeric(df["age"], errors="coerce")
+        df["race"] = df["race"].fillna("Unknown")
+        df["X"] = pd.to_numeric(df["X"], errors="coerce")
+
         st.markdown("**Distribution of Final Payoffs (X)**")
-        bins = [0, 50, 75, 90, 100, 125, 150, 200, 250]
-        binned = pd.cut(df["X"], bins=bins)
+        bins = pd.interval_range(start=0, end=df["X"].max() + 50, freq=25, closed="right")
+        binned = pd.cut(df["X"], bins=bins, include_lowest=True)
         binned_counts = binned.value_counts().sort_index()
-        binned_counts.index = binned_counts.index.astype(str)  # Convert intervals to strings
+        binned_counts.index = binned_counts.index.astype(str)
         st.bar_chart(binned_counts)
 
+        if len(df) >= 5:
+            st.markdown("**Average Final Payoff by Gender**")
+            st.bar_chart(df.groupby("gender")["X"].mean())
 
-        st.markdown("**Average Final Payoff by Gender**")
-        st.bar_chart(df.groupby("gender")["X"].mean())
+            st.markdown("**Average Final Payoff by Age**")
+            st.bar_chart(df.groupby("age")["X"].mean())
 
-        st.markdown("**Average Final Payoff by Age**")
-        st.bar_chart(df.groupby("age")["X"].mean())
-
-        st.markdown("**Average Final Payoff by Race**")
-        st.bar_chart(df.groupby("race")["X"].mean())
+            st.markdown("**Average Final Payoff by Race**")
+            df["race"] = df["race"].apply(lambda x: x.split(", ") if isinstance(x, str) else [])
+            df_exploded = df.explode("race")
+            st.bar_chart(df_exploded.groupby("race")["X"].mean())
+        else:
+            st.info("Not enough data to generate meaningful group charts.")
     else:
         st.info("No group data available yet.")
 
@@ -206,7 +216,6 @@ elif st.session_state.page == "final":
     show_final()
 elif st.session_state.page == "dashboard":
     show_dashboard()
-
 
 
 
