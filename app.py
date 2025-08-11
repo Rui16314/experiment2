@@ -61,6 +61,7 @@ def show_rules():
     You will play 10 rounds. In each round, you receive 100 points and choose how much to invest in a risky asset.
     - If the asset succeeds (50% chance): payoff = 100 + 1.5 × investment
     - If it fails: payoff = 100 − investment
+    
     At the end, one round is randomly selected and its payoff becomes your final score (X value).
     """)
     if st.button("Start Game"):
@@ -166,7 +167,12 @@ def show_dashboard():
         df = pd.DataFrame(all_data)
 
         st.markdown("**Distribution of Final Payoffs (X)**")
-        st.bar_chart(df["X"].value_counts().sort_index())
+        bins = [0, 50, 75, 90, 100, 125, 150, 200, 250]
+        binned = pd.cut(df["X"], bins=bins)
+        binned_counts = binned.value_counts().sort_index()
+        binned_counts.index = binned_counts.index.astype(str)  # Convert intervals to strings
+        st.bar_chart(binned_counts)
+
 
         st.markdown("**Average Final Payoff by Gender**")
         st.bar_chart(df.groupby("gender")["X"].mean())
