@@ -1,38 +1,37 @@
 import streamlit as st
 import pandas as pd
 import random
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+import os
+import json
 
-# --- Google Sheets Setup ---
-def save_to_google_sheet(data):
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("experiment2-key.json", scope)
-    client = gspread.authorize(creds)
-    sheet = client.open("Experiment 2").sheet1
+DATA_FILE = "game_data.json"
+
+# --- Local Data Storage ---
+def save_to_local(data):
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r") as f:
+            all_data = json.load(f)
+    else:
+        all_data = []
 
     if isinstance(data['race'], list):
         data['race'] = ', '.join(data['race'])
 
-    round_data = []
-    for r in data["rounds"]:
-        round_data.extend([r["bid"], r["outcome"], r["payoff"]])
+    all_data.append(data)
 
-    row = [data['name'], data['gender'], data['age'], data['race'], data['X'], data.get("selected_round", "")] + round_data
-    sheet.append_row(row)
+    with open(DATA_FILE, "w") as f:
+        json.dump(all_data, f)
 
-def load_data_from_google_sheet():
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("experiment2.json", scope)
-    client = gspread.authorize(creds)
-    sheet = client.open("Your Spreadsheet Name").sheet1
-
-    return sheet.get_all_records()
+def load_local_data():
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r") as f:
+            return json.load(f)
+    return []
 
 # --- Pages ---
 def show_welcome():
     st.title("🎓 Welcome to experiment 2!")
-    st.write("You will play a fun game similar to real-life investment in the stock market! Be careful with your evey investment!")
+    st.write("You will play a fun game similar to real-life investment in the stock market! Be careful with every investment!")
     if st.button("Start"):
         st.session_state.page = "form"
 
@@ -85,7 +84,6 @@ def show_game_input():
             st.session_state.page = "game_result"
             st.rerun()
 
-
 def show_game_result():
     round_num = st.session_state.round
     bid = st.session_state.current_bid
@@ -124,7 +122,7 @@ def show_final():
     st.write(f"🎲 Randomly selected round: **Round {selected}**")
     st.write(f"💰 Your final payoff (X value): **{final_score:.2f} points**")
 
-    save_to_google_sheet(st.session_state.pdata)
+    save_to_local(st.session_state.pdata)
     st.success("Your data has been saved anonymously.")
 
     if st.button("View Class Dashboard"):
@@ -132,7 +130,7 @@ def show_final():
 
 def show_dashboard():
     st.title("📊 Class Dashboard")
-    data = load_data_from_google_sheet()
+    data = load_local_data()
     if not data:
         st.info("No data available yet.")
         return
@@ -185,5 +183,4 @@ elif st.session_state.page == "final":
     show_final()
 elif st.session_state.page == "dashboard":
     show_dashboard()
-
 
