@@ -175,11 +175,21 @@ def show_dashboard():
         st.markdown("**Distribution of Final Payoffs (X)**")
         bins = pd.interval_range(start=0, end=df["X"].max() + 50, freq=25, closed="right")
         binned = pd.cut(df["X"], bins=bins, include_lowest=True)
-        binned_counts = binned.value_counts().sort_index()
+        binned_counts = binned.value_counts()
         sorted_index = sorted(binned_counts.index, key=lambda x: x.left)
         binned_counts = binned_counts.reindex(sorted_index)
-        binned_counts.index = binned_counts.index.astype(str)
-        st.bar_chart(binned_counts)
+
+        # Use Altair for proper sorting
+        import altair as alt
+        hist_df = pd.DataFrame({
+            "Interval Start": [int(interval.left) for interval in binned_counts.index],
+            "Count": binned_counts.values
+        })
+        chart = alt.Chart(hist_df).mark_bar().encode(
+            x=alt.X("Interval Start:O", sort="ascending", title="Final Payoff Interval Start"),
+            y=alt.Y("Count:Q", title="Frequency")
+        )
+        st.altair_chart(chart, use_container_width=True)
 
         st.markdown("**Average Final Payoff by Gender**")
         st.bar_chart(df.groupby("gender")["X"].mean())
@@ -199,6 +209,7 @@ def show_dashboard():
 
     if st.button("Play Again"):
         st.session_state.page = "welcome"
+
 
 # --- Page Routing ---
 if "page" not in st.session_state:
