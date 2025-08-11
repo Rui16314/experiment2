@@ -138,8 +138,6 @@ def show_dashboard():
         return
 
     df = pd.DataFrame(data)
-
-    # Deduplicate by name
     df = df.sort_values(by="timestamp").drop_duplicates(subset="name", keep="last")
 
     st.subheader("All Participants")
@@ -147,7 +145,9 @@ def show_dashboard():
 
     st.subheader("1️⃣ Histogram of X values")
     bins = pd.cut(df["X"], bins=range(0, 201, 10))
-    st.bar_chart(bins.value_counts().sort_index())
+    bin_counts = bins.value_counts().sort_index()
+    bin_counts.index = bin_counts.index.astype(str)
+    st.bar_chart(bin_counts)
 
     st.subheader("2️⃣ Names in each X bin")
     name_bins = df.groupby(pd.cut(df["X"], bins=range(0, 201, 10)))["name"].apply(list)
@@ -159,12 +159,16 @@ def show_dashboard():
         st.write(f"**{gender}**")
         gender_df = df[df["gender"] == gender]
         gender_bins = pd.cut(gender_df["X"], bins=range(0, 201, 10))
-        st.bar_chart(gender_bins.value_counts().sort_index())
+        gender_counts = gender_bins.value_counts().sort_index()
+        gender_counts.index = gender_counts.index.astype(str)
+        st.bar_chart(gender_counts)
 
     st.subheader("4️⃣ Histogram of X for Male Participants")
     male_df = df[df["gender"] == "Male"]
     male_bins = pd.cut(male_df["X"], bins=range(0, 201, 10))
-    st.bar_chart(male_bins.value_counts().sort_index())
+    male_counts = male_bins.value_counts().sort_index()
+    male_counts.index = male_counts.index.astype(str)
+    st.bar_chart(male_counts)
 
     st.subheader("5️⃣ Average X by Gender")
     gender_avg = df.groupby("gender")["X"].mean()
