@@ -176,22 +176,24 @@ def show_dashboard():
         bins = pd.interval_range(start=0, end=df["X"].max() + 50, freq=25, closed="right")
         binned = pd.cut(df["X"], bins=bins, include_lowest=True)
         binned_counts = binned.value_counts().sort_index()
+        sorted_index = sorted(binned_counts.index, key=lambda x: x.left)
+        binned_counts = binned_counts.reindex(sorted_index)
         binned_counts.index = binned_counts.index.astype(str)
         st.bar_chart(binned_counts)
 
-        if len(df) >= 5:
-            st.markdown("**Average Final Payoff by Gender**")
-            st.bar_chart(df.groupby("gender")["X"].mean())
+        st.markdown("**Average Final Payoff by Gender**")
+        st.bar_chart(df.groupby("gender")["X"].mean())
 
-            st.markdown("**Average Final Payoff by Age**")
-            st.bar_chart(df.groupby("age")["X"].mean())
+        st.markdown("**Average Final Payoff by Age**")
+        st.bar_chart(df.groupby("age")["X"].mean())
 
-            st.markdown("**Average Final Payoff by Race**")
-            df["race"] = df["race"].apply(lambda x: x.split(", ") if isinstance(x, str) else [])
-            df_exploded = df.explode("race")
-            st.bar_chart(df_exploded.groupby("race")["X"].mean())
-        else:
-            st.info("Not enough data to generate meaningful group charts.")
+        st.markdown("**Average Final Payoff by Race**")
+        df["race"] = df["race"].apply(lambda x: x.split(", ") if isinstance(x, str) else [])
+        df_exploded = df.explode("race")
+        st.bar_chart(df_exploded.groupby("race")["X"].mean())
+
+        if len(df) < 5:
+            st.caption("⚠️ Group data is based on fewer than 5 participants. Interpret with caution.")
     else:
         st.info("No group data available yet.")
 
