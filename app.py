@@ -3,11 +3,13 @@ import pandas as pd
 import random
 import os
 import json
+from datetime import datetime
 
 DATA_FILE = "game_data.json"
 
 # --- Local Data Storage ---
 def save_to_local(data):
+    data["timestamp"] = datetime.utcnow().isoformat()  # Optional: for deduplication
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r") as f:
             all_data = json.load(f)
@@ -137,6 +139,12 @@ def show_dashboard():
 
     df = pd.DataFrame(data)
 
+    # Deduplicate by name, keeping the latest entry
+    if "timestamp" in df.columns:
+        df = df.sort_values(by="timestamp").drop_duplicates(subset="name", keep="last")
+    else:
+        df = df.drop_duplicates(subset="name", keep="last")
+
     st.subheader("All Participants")
     st.dataframe(df)
 
@@ -183,4 +191,5 @@ elif st.session_state.page == "final":
     show_final()
 elif st.session_state.page == "dashboard":
     show_dashboard()
+
 
