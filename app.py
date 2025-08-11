@@ -127,57 +127,26 @@ def show_final():
     save_to_local(st.session_state.pdata)
     st.success("Your data has been saved anonymously.")
 
-    if st.button("View Class Dashboard"):
+    if st.button("View Your Dashboard"):
         st.session_state.page = "dashboard"
 
 def show_dashboard():
-    st.title("📊 Class Dashboard")
-    data = load_local_data()
-    if not data:
-        st.info("No data available yet.")
-        return
+    st.title("📊 Your Dashboard")
 
-    df = pd.DataFrame(data)
-    df = df.sort_values(by="timestamp").drop_duplicates(subset="name", keep="last")
+    # Show only current participant's data
+    st.subheader("🧍 Your Info")
+    df_user = pd.DataFrame([st.session_state.pdata])
+    df_user["rounds"] = df_user["rounds"].apply(lambda rounds: [f"R{r['round']}: {r['outcome']} (${r['payoff']:.2f})" for r in rounds])
+    st.dataframe(df_user)
 
-    st.subheader("All Participants")
-    st.dataframe(df)
+    # Show round-by-round history
+    st.subheader("📄 Your Round History")
+    rounds_df = pd.DataFrame(st.session_state.pdata["rounds"])
+    st.dataframe(rounds_df)
 
-    st.subheader("1️⃣ Histogram of X values")
-    bins = pd.cut(df["X"], bins=range(0, 201, 10))
-    bin_counts = bins.value_counts().sort_index()
-    bin_counts.index = bin_counts.index.astype(str)
-    st.bar_chart(bin_counts)
-
-    st.subheader("2️⃣ Names in each X bin")
-    name_bins = df.groupby(pd.cut(df["X"], bins=range(0, 201, 10)))["name"].apply(list)
-    for interval, names in name_bins.items():
-        st.write(f"**{interval}**: {', '.join(names)}")
-
-    st.subheader("3️⃣ Histogram of X by Gender")
-    for gender in df["gender"].unique():
-        st.write(f"**{gender}**")
-        gender_df = df[df["gender"] == gender]
-        gender_bins = pd.cut(gender_df["X"], bins=range(0, 201, 10))
-        gender_counts = gender_bins.value_counts().sort_index()
-        gender_counts.index = gender_counts.index.astype(str)
-        st.bar_chart(gender_counts)
-
-    st.subheader("4️⃣ Histogram of X for Male Participants")
-    male_df = df[df["gender"] == "Male"]
-    male_bins = pd.cut(male_df["X"], bins=range(0, 201, 10))
-    male_counts = male_bins.value_counts().sort_index()
-    male_counts.index = male_counts.index.astype(str)
-    st.bar_chart(male_counts)
-
-    st.subheader("5️⃣ Average X by Gender")
-    gender_avg = df.groupby("gender")["X"].mean()
-    st.bar_chart(gender_avg)
-
-    st.subheader("6️⃣ Average X by Age Group and Race")
-    df["age_group"] = pd.cut(df["age"], bins=[10, 20, 30, 40, 50, 60, 100])
-    race_avg = df.groupby(["age_group", "race"])["X"].mean().unstack().fillna(0)
-    st.bar_chart(race_avg)
+    # Optional: Line chart of payoff over rounds
+    st.subheader("📈 Payoff Over Rounds")
+    st.line_chart(rounds_df.set_index("round")["payoff"])
 
     if st.button("Play Again"):
         st.session_state.page = "welcome"
@@ -200,5 +169,6 @@ elif st.session_state.page == "final":
     show_final()
 elif st.session_state.page == "dashboard":
     show_dashboard()
+
 
 
