@@ -9,7 +9,7 @@ DATA_FILE = "game_data.json"
 
 # --- Local Data Storage ---
 def save_to_local(data):
-    data["timestamp"] = datetime.utcnow().isoformat()  # Optional: for deduplication
+    data["timestamp"] = datetime.utcnow().isoformat()
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r") as f:
             all_data = json.load(f)
@@ -139,36 +139,41 @@ def show_dashboard():
 
     df = pd.DataFrame(data)
 
-    # Deduplicate by name, keeping the latest entry
-    if "timestamp" in df.columns:
-        df = df.sort_values(by="timestamp").drop_duplicates(subset="name", keep="last")
-    else:
-        df = df.drop_duplicates(subset="name", keep="last")
+    # Deduplicate by name
+    df = df.sort_values(by="timestamp").drop_duplicates(subset="name", keep="last")
 
     st.subheader("All Participants")
     st.dataframe(df)
 
-    st.subheader("Average Final Payoff (X)")
-    avg_x = df["X"].mean()
-    st.metric(label="Average X", value=f"{avg_x:.2f}")
+    st.subheader("1️⃣ Histogram of X values")
+    bins = pd.cut(df["X"], bins=range(0, 201, 10))
+    st.bar_chart(bins.value_counts().sort_index())
 
-    st.subheader("Gender Distribution")
-    st.bar_chart(df["gender"].value_counts())
+    st.subheader("2️⃣ Names in each X bin")
+    name_bins = df.groupby(pd.cut(df["X"], bins=range(0, 201, 10)))["name"].apply(list)
+    for interval, names in name_bins.items():
+        st.write(f"**{interval}**: {', '.join(names)}")
 
-    st.subheader("Age Distribution")
-    st.bar_chart(df["age"])
+    st.subheader("3️⃣ Histogram of X by Gender")
+    for gender in df["gender"].unique():
+        st.write(f"**{gender}**")
+        gender_df = df[df["gender"] == gender]
+        gender_bins = pd.cut(gender_df["X"], bins=range(0, 201, 10))
+        st.bar_chart(gender_bins.value_counts().sort_index())
 
-    st.subheader("Race Breakdown")
-    all_races = []
-    for entry in df["race"]:
-        if isinstance(entry, str):
-            races = [r.strip() for r in entry.split(",")]
-            all_races.extend(races)
-    race_counts = pd.Series(all_races).value_counts()
-    st.bar_chart(race_counts)
+    st.subheader("4️⃣ Histogram of X for Male Participants")
+    male_df = df[df["gender"] == "Male"]
+    male_bins = pd.cut(male_df["X"], bins=range(0, 201, 10))
+    st.bar_chart(male_bins.value_counts().sort_index())
 
-    st.subheader("Final Payoff Distribution")
-    st.bar_chart(df["X"])
+    st.subheader("5️⃣ Average X by Gender")
+    gender_avg = df.groupby("gender")["X"].mean()
+    st.bar_chart(gender_avg)
+
+    st.subheader("6️⃣ Average X by Age Group and Race")
+    df["age_group"] = pd.cut(df["age"], bins=[10, 20, 30, 40, 50, 60, 100])
+    race_avg = df.groupby(["age_group", "race"])["X"].mean().unstack().fillna(0)
+    st.bar_chart(race_avg)
 
     if st.button("Play Again"):
         st.session_state.page = "welcome"
