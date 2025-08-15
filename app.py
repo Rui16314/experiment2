@@ -4,10 +4,17 @@ import random
 import os
 import json
 from datetime import datetime
-import firebase_admin
-from firebase_admin import credentials, firestore
+import os, tempfile
+from firebase_admin import credentials, initialize_app
 
-cred = credentials.Certificate("experiment2-key")
+key_data = os.environ["experiment2-key"]
+tmp_path = tempfile.gettempdir() + "/sa.json"
+with open(tmp_path, "w") as f:
+    f.write(key_data)
+
+cred = credentials.Certificate(tmp_path)
+initialize_app(cred)
+
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
