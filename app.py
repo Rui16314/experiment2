@@ -163,8 +163,21 @@ def show_final():
     st.write(f"🎲 Randomly selected round: **Round {selected}**")
     st.write(f"💰 Your final payoff (X value): **{final_score:.2f} points**")
 
+    # Save locally
     save_to_local(st.session_state.pdata)
-    st.success("Your data has been saved anonymously.")
+
+    # Prepare Firestore data
+    firestore_data = st.session_state.pdata.copy()
+    firestore_data["timestamp"] = datetime.utcnow().isoformat()
+
+    if isinstance(firestore_data["race"], list):
+        firestore_data["race"] = ', '.join(firestore_data["race"])
+
+    try:
+        db.collection("experiment2_results").add(firestore_data)
+        st.success("Your data has been saved anonymously and uploaded to the coordinator dashboard.")
+    except Exception as e:
+        st.error(f"Failed to upload to Firestore: {e}")
 
     if st.button("View Your Dashboard"):
         st.session_state.page = "dashboard"
