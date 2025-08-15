@@ -7,7 +7,7 @@ from datetime import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-cred = credentials.Certificate("experiment2.json")
+cred = credentials.Certificate("experiment2-key")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
