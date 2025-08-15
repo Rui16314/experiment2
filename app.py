@@ -8,12 +8,13 @@ from datetime import datetime
 DATA_FILE = "game_data.json"
 GAME_STATE_FILE = "game_state.json"
 
-def get_game_status():
+def get_game_status(game_id="investment_game"):
     try:
-        with open(GAME_STATE_FILE, "r") as f:
-            return json.load(f).get("status", "waiting")
+        with open("game_states.json", "r") as f:
+            return json.load(f).get(game_id, "waiting")
     except:
         return "waiting"
+
 
 
 # --- Local Data Storage ---
