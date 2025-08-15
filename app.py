@@ -6,6 +6,15 @@ import json
 from datetime import datetime
 
 DATA_FILE = "game_data.json"
+GAME_STATE_FILE = "game_state.json"
+
+def get_game_status():
+    try:
+        with open(GAME_STATE_FILE, "r") as f:
+            return json.load(f).get("status", "waiting")
+    except:
+        return "waiting"
+
 
 # --- Local Data Storage ---
 def save_to_local(data):
@@ -32,10 +41,23 @@ def load_local_data():
 
 # --- Pages ---
 def show_welcome():
+    # 🔒 Game status check
+    status = get_game_status()
+    if status == "waiting":
+        st.title("⏳ Waiting for Coordinator")
+        st.warning("The game hasn't started yet. Please wait until the coordinator begins.")
+        st.stop()
+    elif status == "ended":
+        st.title("🚫 Game Ended")
+        st.error("The game has ended. Thank you for participating.")
+        st.stop()
+
+    # Normal welcome screen
     st.title("🎓 Welcome to experiment 2!")
     st.write("You will play a fun game similar to real-life investment in the stock market! Be careful with every investment!")
     if st.button("Start"):
         st.session_state.page = "form"
+
 
 def show_form():
     st.title("👤 Personal Information")
