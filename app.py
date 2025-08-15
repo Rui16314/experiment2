@@ -4,6 +4,13 @@ import random
 import os
 import json
 from datetime import datetime
+import firebase_admin
+from firebase_admin import credentials, firestore
+
+cred = credentials.Certificate("coordinator-control-panel-service-account.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()
+
 
 DATA_FILE = "game_data.json"
 GAME_STATE_FILE = "game_state.json"
